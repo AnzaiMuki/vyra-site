@@ -29,6 +29,36 @@
     a.target = '_blank'; a.rel = 'noopener';
   });
 
+  // Téléchargement direct : au chargement, on pointe les boutons du hero sur le FICHIER réel de la
+  // dernière Release GitHub (l'asset .exe / .apk), pour que le clic lance le téléchargement tout de
+  // suite. GitHub sert ces liens avec Content-Disposition: attachment → le fichier se télécharge sans
+  // quitter la page. Repli conservé (href = page des Releases) si l'API échoue.
+  (function () {
+    var REPO = 'AnzaiMuki/universal-ndi-camera';
+    var win = document.getElementById('dl-win'), and = document.getElementById('dl-android');
+    if (!win && !and) return;
+    fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { headers: { 'Accept': 'application/vnd.github+json' } })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (rel) {
+        var assets = rel.assets || [];
+        function url(ext) {
+          for (var i = 0; i < assets.length; i++) {
+            if ((assets[i].name || '').toLowerCase().slice(-ext.length) === ext) return assets[i].browser_download_url;
+          }
+          return null;
+        }
+        var exe = url('.exe'), apk = url('.apk'), ver = (rel.tag_name || '').replace(/^v/i, '');
+        function wire(el, link, ext) {
+          if (!el || !link) return;
+          el.href = link; el.removeAttribute('target');
+          var v = el.querySelector('.v'); if (v) v.textContent = ext + (ver ? ' · v' + ver : '');
+        }
+        wire(win, exe, '.exe');
+        wire(and, apk, '.apk');
+      })
+      .catch(function () { /* on garde le repli : la page des Releases */ });
+  })();
+
   // Fond animé du hero : NAPPE DE PARTICULES qui ondule en continu (grille de points en perspective,
   // crête lumineuse blanche sur champ bleu), rendu additif. Bridé à ~30 i/s ; figé si l'utilisateur
   // a demandé de réduire les animations.
